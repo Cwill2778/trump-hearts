@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
-    "build:all": "npm run install:all && cd frontend && npm run build && cd ../backend && npx prisma generate",
+    "build:all": "npm run install:all && cd frontend && npm run build && cd ../backend && npx prisma generate && npx prisma db push",
     "start": "cd backend && node index.js"
   }
 }
