@@ -43,7 +43,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: 'Playfair Display', serif;
   font-weight: bold;
   font-size: 1.2rem;
-  padding: 10px 20px;
+  padding: 15px 30px;
   cursor: pointer;
   border-radius: 4px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -380,6 +380,21 @@ h1, h2, h3, h4, h5, h6 {
   gap: 20px;
 }
 
+.player-area h3 {
+  text-shadow: 1px 1px 3px rgba(0,0,0,1), -1px -1px 3px rgba(0,0,0,1);
+}
+
+.my-turn-glow {
+  animation: turn-pulse 1.5s infinite alternate;
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+@keyframes turn-pulse {
+  0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.3); }
+  100% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.9), 0 0 40px rgba(212, 175, 55, 0.5); }
+}
+
 .waving-flag {
   position: absolute;
   top: 50%;
@@ -490,6 +505,18 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.6rem;
     margin: 0;
     white-space: nowrap;
+    text-shadow: 1px 1px 3px rgba(0,0,0,1), -1px -1px 3px rgba(0,0,0,1);
+  }
+  
+  .my-turn-glow {
+    animation: turn-pulse 1.5s infinite alternate;
+    border-radius: 10px;
+    background: rgba(212, 175, 55, 0.1);
+  }
+
+  @keyframes turn-pulse {
+    0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.3); }
+    100% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.9), 0 0 40px rgba(212, 175, 55, 0.5); }
   }
   
   .opponent-hand {

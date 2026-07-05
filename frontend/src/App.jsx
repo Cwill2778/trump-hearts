@@ -288,8 +288,8 @@ function App() {
         className={`playing-card ${isRed ? 'red' : 'black'} ${isSelected ? 'selected' : ''}`}
         onClick={onClick}
       >
-        <div>{rank === 'T' ? '10' : rank}</div>
-        <div style={{ fontSize: '2rem' }}>{suitSymbol}</div>
+        <div style={{ fontSize: '1.2em', fontWeight: '900' }}>{rank === 'T' ? '10' : rank}</div>
+        <div style={{ fontSize: '2em', marginTop: '-5px' }}>{suitSymbol}</div>
       </div>
     );
   };
@@ -533,7 +533,7 @@ function App() {
               <div style={{color: 'var(--gold)', fontWeight: 'bold'}}>YOUR TURN!</div>
             )}
           </div>
-          <div className="my-hand">
+          <div className={`my-hand ${gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username ? 'my-turn-glow' : ''}`}>
             {(!isDealing && !isPassingAnim) && gameState?.hand.slice().sort((a, b) => {
               const suitOrder = { 'H': 1, 'S': 2, 'D': 3, 'C': 4 };
               const rankOrder = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
