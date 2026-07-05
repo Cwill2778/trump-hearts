@@ -296,12 +296,30 @@ function App() {
 
   if (view === 'LOGIN') {
     return (
-      <div className="header">
-        <h1>Great American Hearts</h1>
-        <div className="card-container">
-          <h2>Welcome, Winners</h2>
-          <button className="tremendous-btn" style={{width: '100%', marginBottom: 10}} onClick={() => handleAuth('login')}>Login</button>
-          <button className="tremendous-btn" style={{width: '100%'}} onClick={() => handleAuth('register')}>Register</button>
+      <div className="header" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'center' }}>
+        <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+          <h1>Great American Hearts</h1>
+          <div className="card-container">
+            <h2>Welcome, Winners</h2>
+            <button className="tremendous-btn" style={{width: '100%', marginBottom: 10}} onClick={() => handleAuth('login')}>Login</button>
+            <button className="tremendous-btn" style={{width: '100%'}} onClick={() => handleAuth('register')}>Register</button>
+          </div>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', maxWidth: '800px', margin: '0 auto', lineHeight: '1.6', background: 'rgba(0,0,0,0.6)', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--gold)' }}>
+          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--gold)', margin: '0 0 10px 0' }}>🇺🇸 Happy 4th of July and to America for its 250th birthday! 🇺🇸</p>
+          <p style={{ margin: '0 0 15px 0' }}>We are celebrating the independence and freedoms of solo entrepreneurs and technical trades this year:</p>
+          
+          <p style={{ margin: '0 0 15px 0' }}>
+            <span style={{color: 'var(--gold)'}}>Listing:</span> <br/>
+            <a href="https://www.naileditpropertysolutions.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--white)', textDecoration: 'underline', fontWeight: 'bold' }}>www.naileditpropertysolutions.com</a> <br/>
+            as the top Technical Trade for Home Repairs and Preventative Maintenance Subscriptions protecting your greatest and most expensive investments: your home.
+          </p>
+          
+          <p style={{ margin: '0' }}>
+            <span style={{color: 'var(--gold)'}}>And:</span> <br/>
+            To <a href="https://www.cronantech.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--white)', textDecoration: 'underline', fontWeight: 'bold' }}>www.cronantech.com</a> <br/>
+            as a solo entrepreneur in the tech world for designing Nailed It and Cronan Tech websites in full.
+          </p>
         </div>
       </div>
     );
@@ -355,6 +373,33 @@ function App() {
   
   // Find my index
   const myIndex = gameState?.players.findIndex(p => p.username === username);
+  const renderOpponentHand = (player, position) => {
+    if (!gameState?.handCounts) return null;
+    const count = gameState.handCounts[player.id] || 0;
+    if (count === 0) return null;
+
+    let containerStyle = { position: 'absolute' };
+    if (position === 'top') containerStyle.top = '10px';
+    if (position === 'left') containerStyle.right = '10px';
+    if (position === 'right') containerStyle.right = '10px';
+
+    return (
+      <div className={`opponent-hand fan-${position}`} style={containerStyle}>
+        {Array.from({length: count}).map((_, i) => {
+          const offset = (i - (count - 1) / 2);
+          const rotation = offset * 4; 
+          const translate = Math.abs(offset) * 1.5; 
+          
+          let style = { 
+            transform: `translateX(${offset * 12}px) translateY(${translate}px) rotate(${rotation}deg)` 
+          };
+
+          return <div key={i} className="playing-card card-back mini-card" style={style} />;
+        })}
+      </div>
+    );
+  };
+
   const getPlayer = (offset) => {
     if (myIndex === -1 || !gameState) return null;
     const index = (myIndex + offset) % 4;
@@ -375,8 +420,9 @@ function App() {
         
         {/* Top Player (Across) */}
         {getPlayer(2) && (
-          <div className={`player-area ${gameState?.turnIndex === ((myIndex + 2) % 4) ? 'active-player' : ''}`} style={{ borderBottom: '1px solid var(--gold)' }}>
+          <div className={`player-area top-area ${gameState?.turnIndex === ((myIndex + 2) % 4) ? 'active-player' : ''}`} style={{ borderBottom: '1px solid var(--gold)', flexDirection: 'column' }}>
             <h3>{getPlayer(2).username} | Round: {gameState.roundScores[getPlayer(2).id] || 0} | Total: {gameState.scores[getPlayer(2).id] || 0}</h3>
+            {renderOpponentHand(getPlayer(2), 'top')}
           </div>
         )}
         
@@ -384,12 +430,14 @@ function App() {
         <div style={{ display: 'flex', flexGrow: 1 }}>
           {/* Left Player */}
           {getPlayer(1) && (
-             <div className={`player-area ${gameState?.turnIndex === ((myIndex + 1) % 4) ? 'active-player' : ''}`} style={{ borderRight: '1px solid var(--gold)', writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+             <div className={`player-area left-area ${gameState?.turnIndex === ((myIndex + 1) % 4) ? 'active-player' : ''}`} style={{ borderRight: '1px solid var(--gold)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', flexDirection: 'column' }}>
                <h3>{getPlayer(1).username} | Round: {gameState.roundScores[getPlayer(1).id] || 0} | Total: {gameState.scores[getPlayer(1).id] || 0}</h3>
+               {renderOpponentHand(getPlayer(1), 'left')}
              </div>
           )}
           
           <div className="table-center">
+          <div className="waving-flag"></div>
           {gameState && (
             <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
               ☰ Menu
@@ -404,10 +452,10 @@ function App() {
           ))}
           {(!isDealing && !isPassingAnim) && gameState?.currentTrick.map((play, index) => {
             const positions = [
-              { top: 'auto', bottom: '-40px', left: '50%', transform: 'translateX(-50%)' }, // Bottom
-              { top: '50%', left: '-20px', transform: 'translateY(-50%) rotate(90deg)' }, // Left
-              { top: '-40px', bottom: 'auto', left: '50%', transform: 'translateX(-50%)' }, // Top
-              { top: '50%', right: '-20px', left: 'auto', transform: 'translateY(-50%) rotate(-90deg)' } // Right
+              { top: 'auto', bottom: '15%', left: '50%', transform: 'translateX(-50%)' }, // Bottom
+              { top: '50%', left: '15%', transform: 'translateY(-50%) rotate(90deg)' }, // Left
+              { top: '15%', bottom: 'auto', left: '50%', transform: 'translateX(-50%)' }, // Top
+              { top: '50%', right: '15%', left: 'auto', transform: 'translateY(-50%) rotate(-90deg)' } // Right
             ];
             
             // Map player ID to position index (0=me, 1=left, 2=across, 3=right)
@@ -470,8 +518,9 @@ function App() {
 
           {/* Right Player */}
           {getPlayer(3) && (
-              <div className={`player-area ${gameState?.turnIndex === ((myIndex + 3) % 4) ? 'active-player' : ''}`} style={{ borderLeft: '1px solid var(--gold)', writingMode: 'vertical-rl' }}>
+              <div className={`player-area right-area ${gameState?.turnIndex === ((myIndex + 3) % 4) ? 'active-player' : ''}`} style={{ borderLeft: '1px solid var(--gold)', writingMode: 'vertical-rl', flexDirection: 'column' }}>
                <h3>{getPlayer(3).username} | Round: {gameState.roundScores[getPlayer(3).id] || 0} | Total: {gameState.scores[getPlayer(3).id] || 0}</h3>
+               {renderOpponentHand(getPlayer(3), 'right')}
              </div>
           )}
         </div>
