@@ -221,8 +221,8 @@ class HeartsGame {
 
     this.firstTrick = false;
 
-    // Check if round over
-    if (this.hands[this.players[0].id].length === 0) {
+    // Check if round over — ALL players' hands empty (not just player 0)
+    if (this.players.every(p => this.hands[p.id].length === 0)) {
       this.evaluateRound();
     }
   }
@@ -236,10 +236,11 @@ class HeartsGame {
 
     if (moonShooter) {
       this.players.forEach(p => {
+        let jdPoints = this.roundScores[p.id] - this.penaltyPoints[p.id]; // Extract JD points
         if (p.id === moonShooter) {
-          this.scores[p.id] += 0; // Real Trump style: "I won everything, you get 26!"
+          this.scores[p.id] += jdPoints; // Shooter gets 0 penalty + their JD points
         } else {
-          this.scores[p.id] += 26;
+          this.scores[p.id] += 26 + jdPoints; // Others get 26 + their JD points (usually 0)
         }
       });
     } else {
@@ -248,19 +249,22 @@ class HeartsGame {
       });
     }
 
-    // Check if game over (score >= 100)
+    // Check if game over — any player at 100+
     const gameOver = this.players.some(p => this.scores[p.id] >= 100);
     if (gameOver) {
       const minScore = Math.min(...this.players.map(p => this.scores[p.id]));
       const playersWithMinScore = this.players.filter(p => this.scores[p.id] === minScore);
-      if (playersWithMinScore.length > 1) {
-        // Tie breaker!
+      // Allow at most 1 tiebreaker round; if still tied (or any score still 100+), end it
+      if (playersWithMinScore.length > 1 && !this.tieBreakerUsed) {
+        this.tieBreakerUsed = true;
         this.gameState = 'ROUND_OVER';
         this.roundNumber++;
       } else {
+        // Game definitely over — lowest score wins, ties resolved by first listed
         this.gameState = 'GAME_OVER';
       }
     } else {
+      this.tieBreakerUsed = false;
       this.gameState = 'ROUND_OVER';
       this.roundNumber++;
     }

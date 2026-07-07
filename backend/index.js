@@ -369,12 +369,15 @@ const handleBotTurns = (game, roomId) => {
           if (res === 'TRICK_OVER') {
             setTimeout(() => {
               if (game.gameState === 'ROUND_OVER') {
+                game.currentTrick = [];
                 io.to(roomId).emit('chat_message', { system: true, text: 'Round over! Tremendous plays.' });
+                broadcastGameState(game, roomId);
                 setTimeout(() => {
                   game.startRound();
                   broadcastGameState(game, roomId);
                 }, 5000);
               } else if (game.gameState === 'GAME_OVER') {
+                game.currentTrick = [];
                 io.to(roomId).emit('chat_message', { system: true, text: 'Game over! We won bigly!' });
                 broadcastGameState(game, roomId);
                 handleGameOver(game, roomId);
@@ -556,12 +559,15 @@ io.on('connection', (socket) => {
         if (res === 'TRICK_OVER') {
           setTimeout(() => {
              if (game.gameState === 'ROUND_OVER') {
+                game.currentTrick = [];
                 io.to(roomId).emit('chat_message', { system: true, text: 'Round over! Tremendous plays.' });
+                broadcastGameState(game, roomId);
                 setTimeout(() => {
                   game.startRound();
                   broadcastGameState(game, roomId);
                 }, 3000);
              } else if (game.gameState === 'GAME_OVER') {
+                game.currentTrick = [];
                 io.to(roomId).emit('chat_message', { system: true, text: 'Game over! We won bigly!' });
                 broadcastGameState(game, roomId);
                 handleGameOver(game, roomId);
