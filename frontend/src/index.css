@@ -691,6 +691,7 @@ p, li, span, div {
   .game-board {
     height: 100%;
     min-height: unset;
+    touch-action: none; /* Prevents pull-to-refresh interfering with card drag */
   }
 
   .my-info {
@@ -705,9 +706,9 @@ p, li, span, div {
   }
 
   .my-hand {
-    padding: 5px;
-    overflow-x: auto;
-    justify-content: flex-start;
+    overflow: visible;
+    height: 20vh;
+    width: 100%;
   }
 
   .playing-card {

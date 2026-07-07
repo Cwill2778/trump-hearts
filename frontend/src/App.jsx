@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer/simplepeer.min.js';
+import { motion, AnimatePresence } from 'framer-motion';
 import './index.css';
 import Dashboard from './Dashboard';
 
@@ -770,7 +771,9 @@ function App() {
           {gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username && (
             <div className="your-turn-text">YOUR TURN!</div>
           )}
+          {/* Framer Motion hand — CSS-variable arc with drag-to-play */}
           <div className={`my-hand ${gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username ? 'my-turn-glow' : ''}`}>
+            <AnimatePresence>
             {(!isDealing && !isPassingAnim) && (() => {
               const hand = gameState?.hand.slice().sort((a, b) => {
                 const suitOrder = { 'H': 1, 'S': 2, 'D': 3, 'C': 4 };
@@ -780,43 +783,77 @@ function App() {
               });
               if (!hand) return null;
               const totalCards = hand.length;
-              const maxAngle = 65; // wider spread
-              const pivotRadius = 320; // smaller = more pronounced arc curve
+              const handWidth = totalCards > 8 ? 70 : 50; // vw
+
               return hand.map((card, idx) => {
-                const angle = totalCards > 1
-                  ? -maxAngle / 2 + (idx / (totalCards - 1)) * maxAngle
-                  : 0;
-                const angleRad = (angle * Math.PI) / 180;
-                const translateX = pivotRadius * Math.sin(angleRad);
-                const translateY = -(pivotRadius - pivotRadius * Math.cos(angleRad));
+                const t = totalCards === 1 ? 0.5 : idx / (totalCards - 1);
+                const sinT = Math.sin(t * Math.PI);
+                const targetX = (t - 0.5) * handWidth;  // vw
+                const targetY = sinT * -7;               // vh arc lift
+                const targetRot = (t - 0.5) * 38;        // degrees
                 const isSelected = selectedCards.includes(card);
+
                 return (
-                  <div
+                  <motion.div
                     key={card}
-                    className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`}
-                    style={{
-                      transform: `translateX(${translateX}px) translateY(${translateY + (isSelected ? -22 : 0)}px) rotate(${angle}deg)`,
-                      transformOrigin: 'bottom center',
-                      transition: 'transform 0.2s ease',
+                    className="my-hand-card-wrapper"
+                    style={{ position: 'absolute', transformOrigin: 'bottom center', cursor: 'grab' }}
+                    /* — Deal in from center deck — */
+                    initial={{ x: 0, y: '35vh', rotate: 0, scale: 0.3, opacity: 0 }}
+                    /* — Fan out into arc position — */
+                    animate={{
+                      x: `${targetX}vw`,
+                      y: isSelected ? `${targetY - 4}vh` : `${targetY}vh`,
+                      rotate: targetRot,
+                      scale: isSelected ? 1.15 : 1,
+                      opacity: 1,
                       zIndex: idx,
                     }}
-                  >
-                    {renderCard(
-                      card,
-                      true,
-                      () => {
+                    /* — Play card: fly up and vanish — */
+                    exit={{
+                      y: '-60vh',
+                      x: `${targetX * 0.3}vw`,
+                      rotate: targetRot * 2,
+                      scale: 0.4,
+                      opacity: 0,
+                      transition: { duration: 0.35, ease: 'easeIn' }
+                    }}
+                    /* — Staggered spring deal — */
+                    transition={{
+                      type: 'spring',
+                      stiffness: 90,
+                      damping: 14,
+                      delay: idx * 0.04,
+                    }}
+                    /* — Drag to play — */
+                    drag="y"
+                    dragConstraints={{ top: -500, bottom: 10 }}
+                    dragElastic={{ top: 0.75, bottom: 0.05 }}
+                    whileDrag={{ scale: 1.2, rotate: 0, zIndex: 1000, transition: { duration: 0.05 } }}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.y < -100 || info.velocity.y < -450) {
                         if (gameState.gameState === 'PASSING') {
                           toggleCardSelection(card);
                         } else if (gameState.gameState === 'PLAYING') {
                           playCard(card);
                         }
-                      },
-                      isSelected
-                    )}
-                  </div>
+                      }
+                    }}
+                    /* — Tap / click still works — */
+                    onClick={() => {
+                      if (gameState.gameState === 'PASSING') {
+                        toggleCardSelection(card);
+                      } else if (gameState.gameState === 'PLAYING') {
+                        playCard(card);
+                      }
+                    }}
+                  >
+                    {renderCard(card, true, null, isSelected)}
+                  </motion.div>
                 );
               });
             })()}
+            </AnimatePresence>
           </div>
         </div>
 
