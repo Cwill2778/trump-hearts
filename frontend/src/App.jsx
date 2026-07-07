@@ -558,7 +558,6 @@ function App() {
     return (
       <div className={`opponent-hand fan-${position}`} style={containerStyle}>
         {Array.from({length: count}).map((_, i) => {
-          const offset = (i - (count - 1) / 2);
           let rotation, translateX, translateY;
           if (position === 'top') { rotation = 180 + offset * 5; translateX = offset * 12; translateY = Math.abs(offset) * 3; }
           else if (position === 'left') { rotation = 90 + offset * 5; translateX = -Math.abs(offset) * 3; translateY = offset * 12; }
@@ -771,38 +770,55 @@ function App() {
             <div className="your-turn-text">YOUR TURN!</div>
           )}
           <div className={`my-hand ${gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username ? 'my-turn-glow' : ''}`}>
-            {(!isDealing && !isPassingAnim) && gameState?.hand.slice().sort((a, b) => {
-              const suitOrder = { 'H': 1, 'S': 2, 'D': 3, 'C': 4 };
-              const rankOrder = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
-              if (suitOrder[a[1]] !== suitOrder[b[1]]) return suitOrder[a[1]] - suitOrder[b[1]];
-              return rankOrder[a[0]] - rankOrder[b[0]];
-            }).map((card, idx, arr) => {
-              const totalCards = arr.length;
-              const offset = idx - (totalCards - 1) / 2;
-              const rotation = offset * 3.5; 
-              const translateY = Math.abs(offset) * 2;
-              return (
-              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`} style={{ 
-                margin: '0px -15px',
-                transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
-                transformOrigin: 'bottom center',
-                transition: 'transform 0.2s ease, z-index 0s'
-              }}>
-                {renderCard(
-                  card, 
-                  true, 
-                  () => {
-                    if (gameState.gameState === 'PASSING') {
-                      toggleCardSelection(card);
-                    } else if (gameState.gameState === 'PLAYING') {
-                      playCard(card);
-                    }
-                  },
-                  selectedCards.includes(card)
-                )}
-              </div>
-            );
-            })}
+            {(!isDealing && !isPassingAnim) && (() => {
+              const hand = gameState?.hand.slice().sort((a, b) => {
+                const suitOrder = { 'H': 1, 'S': 2, 'D': 3, 'C': 4 };
+                const rankOrder = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+                if (suitOrder[a[1]] !== suitOrder[b[1]]) return suitOrder[a[1]] - suitOrder[b[1]];
+                return rankOrder[a[0]] - rankOrder[b[0]];
+              });
+              if (!hand) return null;
+              const totalCards = hand.length;
+              const maxAngle = 40; // degrees total spread
+              const pivotRadius = 560; // px — larger = flatter arc
+              return hand.map((card, idx) => {
+                // Angle goes from -maxAngle/2 to +maxAngle/2
+                const angle = totalCards > 1
+                  ? -maxAngle / 2 + (idx / (totalCards - 1)) * maxAngle
+                  : 0;
+                const angleRad = (angle * Math.PI) / 180;
+                // Arc offset: card moves up by the chord of the pivot circle
+                const translateX = pivotRadius * Math.sin(angleRad) - pivotRadius * Math.sin(0);
+                const translateY = -(pivotRadius - pivotRadius * Math.cos(angleRad));
+                const isSelected = selectedCards.includes(card);
+                return (
+                  <div
+                    key={card}
+                    className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`}
+                    style={{
+                      margin: '0px -15px',
+                      transform: `translateX(${translateX}px) translateY(${translateY + (isSelected ? -18 : 0)}px) rotate(${angle}deg)`,
+                      transformOrigin: 'bottom center',
+                      transition: 'transform 0.2s ease',
+                      zIndex: idx,
+                    }}
+                  >
+                    {renderCard(
+                      card,
+                      true,
+                      () => {
+                        if (gameState.gameState === 'PASSING') {
+                          toggleCardSelection(card);
+                        } else if (gameState.gameState === 'PLAYING') {
+                          playCard(card);
+                        }
+                      },
+                      isSelected
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
 

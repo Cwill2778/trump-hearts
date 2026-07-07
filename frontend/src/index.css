@@ -544,10 +544,10 @@ p, li, span, div {
   transform: scale(1);
 }
 
-/* Specific radial positions (assuming bottom center origin) */
-.radial-menu-container.open .radial-item-1 { transform: translate(-60px, -40px) scale(1); }
-.radial-menu-container.open .radial-item-2 { transform: translate(0px, -70px) scale(1); }
-.radial-menu-container.open .radial-item-3 { transform: translate(60px, -40px) scale(1); }
+/* Stack vertically upward from the fab button */
+.radial-menu-container.open .radial-item-1 { transform: translate(0px, -65px) scale(1); }   /* Message */
+.radial-menu-container.open .radial-item-2 { transform: translate(0px, -125px) scale(1); }  /* Mic */
+.radial-menu-container.open .radial-item-3 { transform: translate(0px, -185px) scale(1); }  /* Soundboard */
 
 .speech-bubble {
   position: absolute;
