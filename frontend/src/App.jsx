@@ -601,7 +601,6 @@ function App() {
           speechBubble={speechBubbles[getPlayer(2)?.username]}
           isPttActive={pttActivePlayers[getPlayer(2)?.id]}
         />
-        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(2), 'top')}
         
         {/* Left Player */}
         <PlayerAvatar 
@@ -613,7 +612,6 @@ function App() {
           speechBubble={speechBubbles[getPlayer(1)?.username]}
           isPttActive={pttActivePlayers[getPlayer(1)?.id]}
         />
-        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(1), 'left')}
 
         {/* Right Player */}
         <PlayerAvatar 
@@ -625,7 +623,6 @@ function App() {
           speechBubble={speechBubbles[getPlayer(3)?.username]}
           isPttActive={pttActivePlayers[getPlayer(3)?.id]}
         />
-        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(3), 'right')}
         
         {/* Winner Celebration Overlay */}
         {gameState?.gameState === 'GAME_OVER' && (() => {
@@ -779,8 +776,18 @@ function App() {
               const rankOrder = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
               if (suitOrder[a[1]] !== suitOrder[b[1]]) return suitOrder[a[1]] - suitOrder[b[1]];
               return rankOrder[a[0]] - rankOrder[b[0]];
-            }).map(card => (
-              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`} style={{ margin: '0px -15px' }}>
+            }).map((card, idx, arr) => {
+              const totalCards = arr.length;
+              const offset = idx - (totalCards - 1) / 2;
+              const rotation = offset * 3.5; 
+              const translateY = Math.abs(offset) * 2;
+              return (
+              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`} style={{ 
+                margin: '0px -15px',
+                transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
+                transformOrigin: 'bottom center',
+                transition: 'transform 0.2s ease, z-index 0s'
+              }}>
                 {renderCard(
                   card, 
                   true, 
