@@ -430,7 +430,9 @@ p, li, span, div {
   width: 100%;
   z-index: 30;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .your-turn-text {
@@ -473,23 +475,22 @@ p, li, span, div {
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
-  align-items: center;
-  padding: 15px 10px;
-  background: rgba(0,0,0,0.5);
-  border-top: 2px solid var(--gold);
-  border-radius: 20px 20px 0 0;
-  width: auto;
-  max-width: 95vw; 
-  margin: 0 auto;
-  margin-bottom: 20px; /* Raised up a little */
+  align-items: flex-end;
+  padding: 0;
+  background: none;
+  border: none;
+  width: 100%;
   position: relative;
-  z-index: 20; /* Above the avatar */
+  z-index: 20;
+  height: 120px; /* Contain the arc */
+  overflow: visible;
 }
 
 .my-hand-card-wrapper {
-  margin: -5px -12px; /* Negative margins to overlap */
-  z-index: 1;
-  transition: z-index 0s, transform 0.2s;
+  margin: 0 -18px; /* Tight overlap like the reference image */
+  transition: transform 0.2s ease;
+  position: absolute; /* Allow arc positioning to work cleanly */
+  bottom: 0;
 }
 
 .my-hand-card-wrapper:hover {

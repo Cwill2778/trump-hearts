@@ -780,16 +780,14 @@ function App() {
               });
               if (!hand) return null;
               const totalCards = hand.length;
-              const maxAngle = 40; // degrees total spread
-              const pivotRadius = 560; // px — larger = flatter arc
+              const maxAngle = 65; // wider spread
+              const pivotRadius = 320; // smaller = more pronounced arc curve
               return hand.map((card, idx) => {
-                // Angle goes from -maxAngle/2 to +maxAngle/2
                 const angle = totalCards > 1
                   ? -maxAngle / 2 + (idx / (totalCards - 1)) * maxAngle
                   : 0;
                 const angleRad = (angle * Math.PI) / 180;
-                // Arc offset: card moves up by the chord of the pivot circle
-                const translateX = pivotRadius * Math.sin(angleRad) - pivotRadius * Math.sin(0);
+                const translateX = pivotRadius * Math.sin(angleRad);
                 const translateY = -(pivotRadius - pivotRadius * Math.cos(angleRad));
                 const isSelected = selectedCards.includes(card);
                 return (
@@ -797,8 +795,7 @@ function App() {
                     key={card}
                     className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`}
                     style={{
-                      margin: '0px -15px',
-                      transform: `translateX(${translateX}px) translateY(${translateY + (isSelected ? -18 : 0)}px) rotate(${angle}deg)`,
+                      transform: `translateX(${translateX}px) translateY(${translateY + (isSelected ? -22 : 0)}px) rotate(${angle}deg)`,
                       transformOrigin: 'bottom center',
                       transition: 'transform 0.2s ease',
                       zIndex: idx,
