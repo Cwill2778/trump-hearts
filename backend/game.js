@@ -49,6 +49,7 @@ class HeartsGame {
       this.hands[p.id] = [];
     });
     this.currentTrick = [];
+    this.playedCards = [];
     this.heartsBroken = false;
     this.passedCards = {};
     this.firstTrick = true;
@@ -187,6 +188,7 @@ class HeartsGame {
   }
 
   evaluateTrick() {
+    this.playedCards = (this.playedCards || []).concat(this.currentTrick.map(t => t.card));
     const leadSuit = this.currentTrick[0].card[1];
     let highestRank = -1;
     let winnerId = null;

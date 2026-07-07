@@ -73,6 +73,7 @@ function App() {
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [soundboardModalOpen, setSoundboardModalOpen] = useState(false);
+  const [trackerOpen, setTrackerOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   
   // Local Game interaction state
@@ -798,6 +799,55 @@ function App() {
           </div>
         )}
         
+        {/* Card Tracker Button */}
+        <button 
+          className="tremendous-btn" 
+          onClick={() => setTrackerOpen(!trackerOpen)}
+          style={{
+            position: 'absolute', left: 20, bottom: 40, width: 50, height: 50, borderRadius: 25, 
+            fontSize: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center',
+            padding: 0, zIndex: 100
+          }}
+          title="Card Tracker"
+        >
+          🃏
+        </button>
+
+        {/* Card Tracker Modal */}
+        {trackerOpen && (
+          <div style={{
+            position: 'absolute', bottom: 100, left: 20,
+            background: 'rgba(0,0,0,0.95)', padding: '15px', borderRadius: 10, border: '2px solid var(--gold)',
+            zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10
+          }}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h4 style={{margin: 0, color: 'var(--gold)'}}>Played Cards</h4>
+              <button className="tremendous-btn" onClick={() => setTrackerOpen(false)} style={{padding: '2px 8px', fontSize: '0.8rem'}}>✕</button>
+            </div>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 5}}>
+              {['C', 'D', 'S', 'H'].map(suit => (
+                <div key={suit} style={{display: 'flex', gap: 4, background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: 5, alignItems: 'center'}}>
+                  <div style={{width: 20, color: cardColors[suit], fontWeight: 'bold'}}>{cardSuits[suit]}</div>
+                  {['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'].map(rank => {
+                    const card = rank + suit;
+                    const isPlayed = (gameState?.playedCards || []).includes(card);
+                    return (
+                      <div key={card} style={{
+                        width: 15, textAlign: 'center', fontSize: '0.85rem',
+                        color: isPlayed ? 'rgba(255,255,255,0.2)' : (cardColors[suit] === 'black' ? '#FFFFFF' : '#FF4444'),
+                        textDecoration: isPlayed ? 'line-through' : 'none',
+                        fontWeight: isPlayed ? 'normal' : 'bold'
+                      }}>
+                        {rank === 'T' ? '10' : rank}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Soundboard Modal */}
         {soundboardModalOpen && (
           <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.9)', padding: 20, borderRadius: 10, zIndex: 1000, border: '2px solid var(--gold)', width: '300px'}}>

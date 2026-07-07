@@ -271,6 +271,7 @@ const getGameStateForPlayer = (game, playerId) => {
     scores: game.scores,
     roundScores: game.roundScores,
     currentTrick: game.currentTrick,
+    playedCards: game.playedCards || [],
     turnIndex: game.turnIndex,
     heartsBroken: game.heartsBroken,
     trickLeaderIndex: game.trickLeaderIndex,

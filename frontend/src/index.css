@@ -1150,3 +1150,24 @@ p, li, span, div {
   100% { transform: scale(30); opacity: 0; box-shadow: 0 0 50px 20px rgba(255, 215, 0, 0); }
 }
 
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: var(--navy);
+  z-index: 999999;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+}
+
+@media screen and (max-width: 800px) and (orientation: portrait) {
+  #rotate-overlay {
+    display: flex;
+  }
+  #root {
+    display: none;
+  }
+}
