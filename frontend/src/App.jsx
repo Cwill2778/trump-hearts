@@ -341,6 +341,7 @@ function App() {
       if (gameState.currentTrick && prevGameState.currentTrick && 
           gameState.currentTrick.length > prevGameState.currentTrick.length) {
         const audio = new Audio('https://www.myinstants.com/media/sounds/card-draw.mp3');
+        audio.volume = 0.3;
         audio.play().catch(e => console.error(e));
       }
 
