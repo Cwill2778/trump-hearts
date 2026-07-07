@@ -12,6 +12,8 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
   const [queueTimeLeft, setQueueTimeLeft] = useState(null);
   const [queuePlayers, setQueuePlayers] = useState([]);
   const [tournamentBracket, setTournamentBracket] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     socket.emit('get_lobbies');
@@ -62,12 +64,51 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
       const res = await fetch(`${API_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.status === 401 || res.status === 403) {
+        onLogout();
+        return;
+      }
       const data = await res.json();
       setProfile(data);
+      fetchHistory();
     } catch (e) {
       console.error(e);
     }
   };
+
+  const fetchLeaderboard = async () => {
+    try {
+      const res = await fetch(`${API_URL}/leaderboard`);
+      const data = await res.json();
+      setLeaderboard(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchHistory = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.status === 401 || res.status === 403) {
+        onLogout();
+        return;
+      }
+      const data = await res.json();
+      setHistory(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'LEADERBOARD') {
+      fetchLeaderboard();
+    }
+  }, [activeTab]);
 
   const buyCoins = async () => {
     const token = localStorage.getItem('token');
@@ -76,13 +117,20 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.status === 401 || res.status === 403) {
+        onLogout();
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setCoins(data.coins);
         alert('Purchase tremendous! You got 25,000 coins.');
+      } else {
+        alert(data.error || 'Failed to buy coins');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Buy coins error:', e);
+      alert('Network error while buying coins.');
     }
   };
 
@@ -200,6 +248,7 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
         </div>
         <button className={`sidebar-btn ${activeTab === 'LOBBY' ? 'active' : ''}`} onClick={() => setActiveTab('LOBBY')}>🃏 Lobby Browser</button>
         <button className={`sidebar-btn ${activeTab === 'TOURNAMENT' ? 'active' : ''}`} onClick={() => setActiveTab('TOURNAMENT')}>🏆 Tournaments</button>
+        <button className={`sidebar-btn ${activeTab === 'LEADERBOARD' ? 'active' : ''}`} onClick={() => setActiveTab('LEADERBOARD')}>👑 Leaderboard</button>
         <button className={`sidebar-btn ${activeTab === 'STORE' ? 'active' : ''}`} onClick={() => setActiveTab('STORE')}>💰 Coin Store</button>
         <button className={`sidebar-btn ${activeTab === 'PROFILE' ? 'active' : ''}`} onClick={() => setActiveTab('PROFILE')}>👤 Profile & Friends</button>
         
@@ -296,6 +345,39 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
           </div>
         )}
 
+        {activeTab === 'LEADERBOARD' && (
+          <div style={{maxWidth: '800px', margin: '0 auto'}}>
+            <h1 style={{textAlign: 'center', marginBottom: 30}}>👑 GLOBAL LEADERBOARD</h1>
+            <div style={{background: 'rgba(0,0,0,0.6)', border: '2px solid var(--gold)', borderRadius: 16, overflow: 'hidden'}}>
+              <div style={{display: 'flex', padding: '15px 20px', background: 'rgba(212,175,55,0.2)', borderBottom: '2px solid var(--gold)', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--gold)'}}>
+                <div style={{width: '60px'}}>Rank</div>
+                <div style={{flex: 1}}>Player</div>
+                <div style={{width: '100px', textAlign: 'center'}}>Wins</div>
+                <div style={{width: '100px', textAlign: 'center'}}>Losses</div>
+                <div style={{width: '150px', textAlign: 'right'}}>Coins</div>
+              </div>
+              {leaderboard.length === 0 ? (
+                <div style={{padding: 30, textAlign: 'center'}}>No players ranked yet.</div>
+              ) : (
+                leaderboard.map((user, idx) => (
+                  <div key={user.id} style={{display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)'}}>
+                    <div style={{width: '60px', fontSize: '1.2rem', fontWeight: 800, color: idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : 'white'}}>
+                      #{idx + 1}
+                    </div>
+                    <div style={{flex: 1, display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700}}>
+                      <img src={user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${user.username}`} alt="" style={{width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--gold)'}} />
+                      {user.username}
+                    </div>
+                    <div style={{width: '100px', textAlign: 'center', color: '#4CAF50', fontWeight: 'bold'}}>{user.wins}</div>
+                    <div style={{width: '100px', textAlign: 'center', color: 'var(--red)', fontWeight: 'bold'}}>{user.losses}</div>
+                    <div style={{width: '150px', textAlign: 'right', color: 'var(--gold)', fontWeight: 'bold'}}>{user.coins.toLocaleString()}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'STORE' && (
           <div style={{maxWidth: '600px', margin: '0 auto', textAlign: 'center'}}>
             <h1>💰 COIN STORE</h1>
@@ -336,6 +418,39 @@ export default function Dashboard({ socket, username, coins, setCoins, onLogout 
                     <div style={{fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)'}}>Losses</div>
                   </div>
                 </div>
+              </div>
+
+              {/* Middle: Recent Matches */}
+              <div style={{background: 'rgba(0,0,0,0.5)', border: '1px solid var(--gold)', borderRadius: 16, padding: 30, minWidth: 280, flex: 1}}>
+                <h3 style={{marginBottom: 15, color: 'var(--gold)'}}>Recent Matches</h3>
+                {history.length === 0 ? (
+                  <p style={{color: 'rgba(255,255,255,0.5)', fontStyle: 'italic'}}>No games played yet. Get out there!</p>
+                ) : (
+                  <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                    {history.map(hp => {
+                      const m = hp.match;
+                      return (
+                        <div key={hp.id} style={{background: hp.isWinner ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${hp.isWinner ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 8, padding: '10px 15px'}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 5}}>
+                            <span style={{fontWeight: 'bold', color: hp.isWinner ? 'var(--gold)' : 'white'}}>
+                              {hp.isWinner ? '🏆 VICTORY' : '💀 DEFEAT'}
+                            </span>
+                            <span style={{fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)'}}>{new Date(m.playedAt).toLocaleDateString()}</span>
+                          </div>
+                          <div style={{fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)'}}>
+                            Table: {m.roomId} <br/>
+                            Your Score: {hp.score} pts
+                          </div>
+                          {m.winnerUsername && !hp.isWinner && (
+                            <div style={{fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: 4}}>
+                              Won by: {m.winnerUsername}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Right: Friends */}

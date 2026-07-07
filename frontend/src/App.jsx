@@ -602,6 +602,43 @@ function App() {
           isPttActive={pttActivePlayers[getPlayer(3)?.id]}
         />
         
+        {/* Winner Celebration Overlay */}
+        {gameState?.gameState === 'GAME_OVER' && (() => {
+          const minScore = Math.min(...gameState.players.map(p => gameState.scores[p.id]));
+          const myScore = gameState.scores[gameState.players[myIndex].id];
+          const isWinner = myScore === minScore;
+          const winnerNames = gameState.players.filter(p => gameState.scores[p.id] === minScore).map(p => p.username).join(' & ');
+
+          return (
+            <div className="celebration-overlay">
+              <div className="fireworks"></div>
+              <div className="fireworks"></div>
+              <div className="fireworks"></div>
+              <div className={`celebration-card ${isWinner ? 'winner' : 'loser'}`}>
+                {isWinner ? (
+                  <>
+                    <div style={{fontSize: '5rem', marginBottom: 20}}>🏆</div>
+                    <h1 style={{fontSize: '3rem', color: '#FFD700', textShadow: '0 0 20px rgba(255, 215, 0, 0.8)', margin: 0}}>VICTORY!</h1>
+                    <h2 style={{color: 'white', marginTop: 10}}>You won with {myScore} points!</h2>
+                    <p style={{fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)'}}>Tremendous job. Everyone says so.</p>
+                  </>
+                ) : (
+                  <>
+                    <div style={{fontSize: '4rem', marginBottom: 20, opacity: 0.8}}>💀</div>
+                    <h1 style={{fontSize: '3rem', color: 'var(--red)', margin: 0}}>GAME OVER</h1>
+                    <h2 style={{color: 'white', marginTop: 10}}>{winnerNames} won bigly.</h2>
+                    <p style={{fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)'}}>You scored {myScore} points. Sad!</p>
+                  </>
+                )}
+                
+                <button className="tremendous-btn" style={{marginTop: 30, fontSize: '1.3rem', padding: '15px 30px'}} onClick={leaveGame}>
+                  Return to Lobby
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Center Trick Area */}
         <div className="table-center spades-table-center">
           <div className="waving-flag"></div>

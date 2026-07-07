@@ -157,6 +157,40 @@ app.get('/profile', auth, async (req, res) => {
   }
 });
 
+app.get('/leaderboard', async (req, res) => {
+  try {
+    const topPlayers = await prisma.user.findMany({
+      take: 20,
+      orderBy: [
+        { wins: 'desc' },
+        { coins: 'desc' }
+      ],
+      select: { id: true, username: true, wins: true, losses: true, coins: true, avatarUrl: true }
+    });
+    res.json(topPlayers);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/history', auth, async (req, res) => {
+  try {
+    const history = await prisma.matchPlayer.findMany({
+      where: { userId: req.user.userId },
+      include: { 
+        match: {
+          include: { players: true }
+        }
+      },
+      orderBy: { match: { playedAt: 'desc' } },
+      take: 10
+    });
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/store/buy_coins', auth, async (req, res) => {
   try {
     // Mocking $0.99 purchase of 25,000 coins
@@ -166,7 +200,8 @@ app.post('/store/buy_coins', auth, async (req, res) => {
     });
     res.json({ success: true, coins: updated.coins });
   } catch (err) {
-    res.status(500).json({ error: 'Transaction failed' });
+    console.error('Buy coins error:', err);
+    res.status(500).json({ error: 'Transaction failed', details: err.message });
   }
 });
 
@@ -255,6 +290,55 @@ const broadcastGameState = (game, roomId) => {
 // Also expose it so TournamentManager can trigger bot turns
 tournamentManager.broadcastGameState = broadcastGameState;
 
+const handleGameOver = async (game, roomId) => {
+  const minScore = Math.min(...game.players.map(p => game.scores[p.id]));
+  let winnerUsername = null;
+  
+  // Update wins/losses and build match player data
+  const matchPlayersData = [];
+  for (const p of game.players) {
+    const isWinner = game.scores[p.id] === minScore;
+    if (isWinner && !winnerUsername) winnerUsername = p.username;
+
+    let dbUserId = null;
+    if (!p.isBot) {
+      try {
+        const user = await prisma.user.findUnique({ where: { username: p.username } });
+        if (user) {
+          dbUserId = user.id;
+          if (isWinner) {
+            await prisma.user.update({ where: { id: dbUserId }, data: { wins: { increment: 1 } } });
+          } else {
+            await prisma.user.update({ where: { id: dbUserId }, data: { losses: { increment: 1 } } });
+          }
+        }
+      } catch(e) { console.error('Win/loss update error:', e); }
+    }
+    
+    matchPlayersData.push({
+      userId: dbUserId,
+      username: p.username,
+      score: game.scores[p.id],
+      isWinner
+    });
+  }
+
+  // Save match history
+  try {
+    await prisma.matchHistory.create({
+      data: {
+        roomId,
+        winnerUsername,
+        players: {
+          create: matchPlayersData
+        }
+      }
+    });
+  } catch(e) {
+    console.error('Match history save error:', e);
+  }
+};
+
 const handleBotTurns = (game, roomId) => {
   if (game.gameState === 'PASSING') {
       game.players.filter(p => p.isBot || p.isDisconnected).forEach(bot => {
@@ -292,6 +376,7 @@ const handleBotTurns = (game, roomId) => {
               } else if (game.gameState === 'GAME_OVER') {
                 io.to(roomId).emit('chat_message', { system: true, text: 'Game over! We won bigly!' });
                 broadcastGameState(game, roomId);
+                handleGameOver(game, roomId);
               } else {
                 game.currentTrick = [];
                 broadcastGameState(game, roomId);
@@ -478,19 +563,7 @@ io.on('connection', (socket) => {
              } else if (game.gameState === 'GAME_OVER') {
                 io.to(roomId).emit('chat_message', { system: true, text: 'Game over! We won bigly!' });
                 broadcastGameState(game, roomId);
-                
-                // Track wins/losses for real players
-                const minScore = Math.min(...game.players.map(p => game.scores[p.id]));
-                game.players.forEach(async (p) => {
-                  if (p.isBot) return;
-                  try {
-                    if (game.scores[p.id] === minScore) {
-                      await prisma.user.update({ where: { username: p.username }, data: { wins: { increment: 1 } } });
-                    } else {
-                      await prisma.user.update({ where: { username: p.username }, data: { losses: { increment: 1 } } });
-                    }
-                  } catch(e) { console.error('Win/loss update error:', e); }
-                });
+                handleGameOver(game, roomId);
              } else {
                 game.currentTrick = [];
                 broadcastGameState(game, roomId);

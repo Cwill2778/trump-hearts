@@ -26,6 +26,7 @@ model User {
   
   friends        Friendship[] @relation("UserFriends")
   friendRequests Friendship[] @relation("FriendRequests")
+  matches        MatchPlayer[]
 }
 
 model Friendship {
@@ -37,3 +38,25 @@ model Friendship {
   user      User     @relation("UserFriends", fields: [userId], references: [id])
   friend    User     @relation("FriendRequests", fields: [friendId], references: [id])
 }
+
+model MatchHistory {
+  id             Int      @id @default(autoincrement())
+  roomId         String
+  winnerUsername String?
+  playedAt       DateTime @default(now())
+  
+  players        MatchPlayer[]
+}
+
+model MatchPlayer {
+  id          Int      @id @default(autoincrement())
+  matchId     Int
+  userId      Int?     // Nullable for bots
+  username    String   // Storing name directly for bots and easy display
+  score       Int
+  isWinner    Boolean  @default(false)
+  
+  match       MatchHistory @relation(fields: [matchId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
+}
+

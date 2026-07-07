@@ -375,7 +375,12 @@ p, li, span, div {
 .spades-avatar-container.top { top: 20px; left: 50%; transform: translateX(-50%); }
 .spades-avatar-container.left { top: 50%; left: 20px; transform: translateY(-50%); }
 .spades-avatar-container.right { top: 50%; right: 20px; transform: translateY(-50%); }
-.spades-avatar-container.bottom { bottom: 130px; left: 20px; }
+.spades-avatar-container.bottom { 
+  bottom: 0px; 
+  left: 50%; 
+  transform: translateX(-50%); 
+  z-index: 5; /* Behind the cards */
+}
 
 .avatar-wrapper {
   position: relative;
@@ -476,6 +481,9 @@ p, li, span, div {
   width: 100%;
   max-width: 320px; /* Forces wrapping for 13 cards */
   margin: 0 auto;
+  margin-bottom: 20px; /* Raised up a little */
+  position: relative;
+  z-index: 20; /* Above the avatar */
 }
 
 .my-hand-card-wrapper {
@@ -599,9 +607,15 @@ p, li, span, div {
 
 .action-menu-container {
   position: absolute;
-  bottom: 120px; /* Above the cards */
-  right: 20px; /* To the right of the screen, or near the avatar */
+  bottom: 40px; /* Beside the cards */
+  right: calc(50% - 240px); /* 160px is half card width + 80px margin */
   z-index: 100;
+}
+
+@media (max-width: 768px) {
+  .action-menu-container {
+    right: 10px; /* Stick to right edge on small screens */
+  }
 }
 
 .my-turn-glow {
@@ -1069,5 +1083,70 @@ p, li, span, div {
     height: 30px;
     background: linear-gradient(180deg, rgba(212, 175, 55, 0.5), rgba(212, 175, 55, 0.2));
   }
+}
+
+/* Celebration Overlay */
+.celebration-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.celebration-card {
+  background: rgba(10, 10, 20, 0.95);
+  border: 4px solid;
+  border-radius: 20px;
+  padding: 50px;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(0,0,0,0.8);
+  transform: scale(0.8);
+  animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  z-index: 10000;
+  max-width: 600px;
+}
+
+.celebration-card.winner {
+  border-color: var(--gold);
+  box-shadow: 0 0 50px rgba(212, 175, 55, 0.4), inset 0 0 30px rgba(212, 175, 55, 0.2);
+}
+
+.celebration-card.loser {
+  border-color: var(--red);
+  box-shadow: 0 0 50px rgba(179, 25, 66, 0.4), inset 0 0 30px rgba(179, 25, 66, 0.2);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Simple CSS Fireworks */
+.fireworks {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: explode 2s infinite ease-out;
+  opacity: 0;
+}
+
+.fireworks:nth-child(1) { top: 20%; left: 20%; background: #FFD700; animation-delay: 0s; }
+.fireworks:nth-child(2) { top: 30%; right: 20%; background: #FF4500; animation-delay: 0.5s; }
+.fireworks:nth-child(3) { top: 15%; left: 50%; background: #00BFFF; animation-delay: 1s; }
+
+@keyframes explode {
+  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 215, 0, 1); }
+  100% { transform: scale(30); opacity: 0; box-shadow: 0 0 50px 20px rgba(255, 215, 0, 0); }
 }
 
