@@ -474,7 +474,7 @@ io.on('connection', (socket) => {
         join: () => {},
         leave: () => {}
       };
-      const botNames = ['Jesse', 'Jason', 'Logan', 'Steve', 'Terry', 'Justin', 'Marissa', 'Chelsea', 'Amy', 'Jessica', 'Jennifer'];
+      const botNames = ['Michael', 'David', 'James', 'John', 'Robert', 'Mary', 'Patricia', 'Linda', 'Barbara', 'Elizabeth'];
       const botName = botNames[Math.floor(Math.random() * botNames.length)];
       const botUser = {
         id: `bot_user_${Math.random()}`,
@@ -491,7 +491,7 @@ io.on('connection', (socket) => {
     if (!roomId) return;
     const game = lobbies[roomId];
     if (game && game.players.length < 4) {
-      const botNames = ['Jesse', 'Jason', 'Logan', 'Steve', 'Terry', 'Justin', 'Marissa', 'Chelsea', 'Amy', 'Jessica', 'Jennifer'];
+      const botNames = ['William', 'Richard', 'Thomas', 'Susan', 'Margaret', 'Sarah', 'Karen', 'Nancy', 'Lisa', 'Betty'];
       const name = botNames[Math.floor(Math.random() * botNames.length)];
       game.addPlayer({ id: `bot_${Math.random()}`, username: name, isBot: true, avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${name.replace(' ', '')}` });
       io.to(roomId).emit('lobby_update', game.players.map(p => ({ id: p.id, username: p.username, isBot: p.isBot, avatarUrl: p.avatarUrl })));

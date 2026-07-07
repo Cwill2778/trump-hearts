@@ -31,7 +31,7 @@ class TournamentManager {
         id: `bot_t_${Math.random()}`,
         emit: () => {}, join: () => {}, leave: () => {}
       };
-      const botNames = ['Jesse', 'Jason', 'Logan', 'Steve', 'Terry', 'Justin', 'Marissa', 'Chelsea', 'Amy', 'Jessica', 'Jennifer'];
+      const botNames = ['Matthew', 'Anthony', 'Mark', 'Donald', 'Steven', 'Paul', 'Andrew', 'Joshua', 'Kenneth', 'Kevin'];
       const botName = botNames[Math.floor(Math.random() * botNames.length)];
       const botUser = {
         id: `bot_user_${Math.random()}`,
