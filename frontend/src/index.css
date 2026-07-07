@@ -545,10 +545,10 @@ p, li, span, div {
   transform: scale(1);
 }
 
-/* Stack vertically upward from the fab button */
-.radial-menu-container.open .radial-item-1 { transform: translate(0px, -65px) scale(1); }   /* Message */
-.radial-menu-container.open .radial-item-2 { transform: translate(0px, -125px) scale(1); }  /* Mic */
-.radial-menu-container.open .radial-item-3 { transform: translate(0px, -185px) scale(1); }  /* Soundboard */
+/* Expand to the right, angled toward top-center — won't overlap top player score */
+.radial-menu-container.open .radial-item-1 { transform: translate(65px, 0px) scale(1); }   /* Message - first right */
+.radial-menu-container.open .radial-item-2 { transform: translate(125px, 0px) scale(1); }  /* Mic - second right */
+.radial-menu-container.open .radial-item-3 { transform: translate(185px, 0px) scale(1); }  /* Soundboard - third right */
 
 .speech-bubble {
   position: absolute;
@@ -608,14 +608,15 @@ p, li, span, div {
 
 .action-menu-container {
   position: absolute;
-  bottom: 40px; /* Beside the cards */
-  right: calc(50% - 240px); /* 160px is half card width + 80px margin */
+  top: 20px;    /* Top-left corner */
+  left: 20px;
   z-index: 100;
 }
 
 @media (max-width: 768px) {
   .action-menu-container {
-    right: 10px; /* Stick to right edge on small screens */
+    top: 15px;
+    left: 15px;
   }
 }
 
