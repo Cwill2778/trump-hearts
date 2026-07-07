@@ -23,11 +23,31 @@ const trumpQuotes = [
   { label: "Don't Tell Us", url: '/sounds/DontTellUsWhatWereGonnaFeel.m4r' }
 ];
 
-const PlayerAvatar = ({ player, position, isActive, roundScore, totalScore, speechBubble, isPttActive }) => {
+const PlayerAvatar = ({ player, position, isActive, roundScore, totalScore, speechBubble, isPttActive, customStyle, hideScore }) => {
   if (!player) return null;
-  const isBottom = position === 'bottom';
+  const isTop = position === 'top';
+  
+  if (isTop) {
+    return (
+      <div className={`spades-avatar-container ${position} ${isActive ? 'active' : ''}`} style={{ ...customStyle, flexDirection: 'row', alignItems: 'center', gap: '15px' }}>
+        <div className="score-bubble" style={{ marginTop: 0 }}>
+          <span style={{color: 'var(--gold)'}}>R:</span> {roundScore} <br/>
+          <span style={{color: 'var(--gold)'}}>T:</span> {totalScore}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {speechBubble && <div className="speech-bubble">{speechBubble}</div>}
+          <div className="avatar-wrapper">
+            <img src={player.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${player.username.replace(' ','')}`} alt={player.username} className="avatar-img" />
+            {isPttActive && <div className="ptt-indicator">🎤</div>}
+            <div className="avatar-name">{player.username}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`spades-avatar-container ${position} ${isActive ? 'active' : ''}`}>
+    <div className={`spades-avatar-container ${position} ${isActive ? 'active' : ''}`} style={customStyle}>
       {speechBubble && (
         <div className="speech-bubble">
           {speechBubble}
@@ -38,10 +58,12 @@ const PlayerAvatar = ({ player, position, isActive, roundScore, totalScore, spee
         {isPttActive && <div className="ptt-indicator">🎤</div>}
         <div className="avatar-name">{player.username}</div>
       </div>
-      <div className="score-bubble">
-        <span style={{color: 'var(--gold)'}}>R:</span> {roundScore} <br/>
-        <span style={{color: 'var(--gold)'}}>T:</span> {totalScore}
-      </div>
+      {!hideScore && (
+        <div className="score-bubble">
+          <span style={{color: 'var(--gold)'}}>R:</span> {roundScore} <br/>
+          <span style={{color: 'var(--gold)'}}>T:</span> {totalScore}
+        </div>
+      )}
     </div>
   );
 };
@@ -736,6 +758,15 @@ function App() {
             totalScore={gameState?.scores[getPlayer(0)?.id] || 0} 
             speechBubble={speechBubbles[getPlayer(0)?.username]}
             isPttActive={pttActivePlayers[getPlayer(0)?.id]}
+            hideScore={true}
+            customStyle={{
+              bottom: 20,
+              right: actionMenuOpen ? 180 : 90,
+              left: 'auto',
+              transform: 'none',
+              transition: 'right 0.3s ease',
+              zIndex: 100
+            }}
           />
           {gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username && (
             <div className="your-turn-text">YOUR TURN!</div>
@@ -799,7 +830,7 @@ function App() {
           </div>
         )}
         
-        {/* Card Tracker Button */}
+        {/* Card Tracker Button & Player 1 Score */}
         <button 
           className="tremendous-btn" 
           onClick={() => setTrackerOpen(!trackerOpen)}
@@ -812,6 +843,12 @@ function App() {
         >
           🃏
         </button>
+        {gameState && (
+          <div className="score-bubble" style={{ position: 'absolute', left: 80, bottom: 40, margin: 0, padding: '5px 15px', zIndex: 100, fontSize: '0.9rem', background: 'rgba(0,0,0,0.8)', border: '2px solid var(--gold)', borderRadius: '15px', width: 'auto' }}>
+            <span style={{color: 'var(--gold)'}}>R:</span> {gameState.roundScores[getPlayer(0)?.id] || 0} <br/>
+            <span style={{color: 'var(--gold)'}}>T:</span> {gameState.scores[getPlayer(0)?.id] || 0}
+          </div>
+        )}
 
         {/* Card Tracker Modal */}
         {trackerOpen && (
