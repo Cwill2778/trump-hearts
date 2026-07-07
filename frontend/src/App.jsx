@@ -564,7 +564,7 @@ function App() {
 
   return (
     <div className="game-layout">
-      <div className="game-board">
+      <div className="game-board" style={{ zoom: 0.75 }}>
         {showGlassShatter && <div className="glass-shatter-overlay" />}
         {showQSAnimation && <div className="qs-animation-overlay">DON'T BE RUDE!</div>}
         
@@ -727,7 +727,7 @@ function App() {
         ))}
 
         {/* Bottom Player (Me) */}
-        <div className={`spades-my-area ${gameState?.turnIndex === myIndex ? 'active-player' : ''}`}>
+        <div className={`spades-my-area ${gameState?.turnIndex === myIndex ? 'active-player' : ''}`} style={{ zoom: 0.85 }}>
           <PlayerAvatar 
             player={getPlayer(0)} 
             position="bottom" 
@@ -747,7 +747,7 @@ function App() {
               if (suitOrder[a[1]] !== suitOrder[b[1]]) return suitOrder[a[1]] - suitOrder[b[1]];
               return rankOrder[a[0]] - rankOrder[b[0]];
             }).map(card => (
-              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`}>
+              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`} style={{ margin: '0px -15px' }}>
                 {renderCard(
                   card, 
                   true, 
