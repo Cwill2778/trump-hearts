@@ -546,26 +546,25 @@ function App() {
   // Find my index
   const myIndex = gameState?.players.findIndex(p => p.username === username);
   const renderOpponentHand = (player, position) => {
-    if (!gameState?.handCounts) return null;
+    if (!gameState?.handCounts || !player) return null;
     const count = gameState.handCounts[player.id] || 0;
     if (count === 0) return null;
 
-    let containerStyle = { position: 'absolute' };
-    if (position === 'top') containerStyle.top = '10px';
-    if (position === 'left') containerStyle.right = '10px';
-    if (position === 'right') containerStyle.right = '10px';
+    let containerStyle = { position: 'absolute', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10 };
+    if (position === 'top') { containerStyle.top = '140px'; containerStyle.left = '50%'; containerStyle.transform = 'translateX(-50%)'; }
+    if (position === 'left') { containerStyle.left = '160px'; containerStyle.top = '50%'; containerStyle.transform = 'translateY(-50%)'; }
+    if (position === 'right') { containerStyle.right = '160px'; containerStyle.top = '50%'; containerStyle.transform = 'translateY(-50%)'; }
 
     return (
       <div className={`opponent-hand fan-${position}`} style={containerStyle}>
         {Array.from({length: count}).map((_, i) => {
           const offset = (i - (count - 1) / 2);
-          const rotation = offset * 4; 
-          const translate = Math.abs(offset) * 1.5; 
+          let rotation, translateX, translateY;
+          if (position === 'top') { rotation = 180 + offset * 5; translateX = offset * 12; translateY = Math.abs(offset) * 3; }
+          else if (position === 'left') { rotation = 90 + offset * 5; translateX = -Math.abs(offset) * 3; translateY = offset * 12; }
+          else if (position === 'right') { rotation = -90 + offset * 5; translateX = Math.abs(offset) * 3; translateY = offset * 12; }
           
-          let style = { 
-            transform: `translateX(${offset * 12}px) translateY(${translate}px) rotate(${rotation}deg)` 
-          };
-
+          let style = { position: 'absolute', transform: `translate(${translateX}px, ${translateY}px) rotate(${rotation}deg)` };
           return <div key={i} className="playing-card card-back mini-card" style={style} />;
         })}
       </div>
@@ -602,6 +601,7 @@ function App() {
           speechBubble={speechBubbles[getPlayer(2)?.username]}
           isPttActive={pttActivePlayers[getPlayer(2)?.id]}
         />
+        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(2), 'top')}
         
         {/* Left Player */}
         <PlayerAvatar 
@@ -613,6 +613,7 @@ function App() {
           speechBubble={speechBubbles[getPlayer(1)?.username]}
           isPttActive={pttActivePlayers[getPlayer(1)?.id]}
         />
+        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(1), 'left')}
 
         {/* Right Player */}
         <PlayerAvatar 
@@ -624,6 +625,7 @@ function App() {
           speechBubble={speechBubbles[getPlayer(3)?.username]}
           isPttActive={pttActivePlayers[getPlayer(3)?.id]}
         />
+        {gameState?.gameState === 'PLAYING' && renderOpponentHand(getPlayer(3), 'right')}
         
         {/* Winner Celebration Overlay */}
         {gameState?.gameState === 'GAME_OVER' && (() => {
