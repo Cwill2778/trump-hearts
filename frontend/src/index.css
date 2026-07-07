@@ -137,8 +137,8 @@ p, li, span, div {
 }
 
 .playing-card {
-  width: 60px;
-  height: 90px;
+  width: 48px;
+  height: 72px;
   background-color: white;
   border: 2px solid var(--navy);
   border-radius: 6px;
@@ -146,7 +146,7 @@ p, li, span, div {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: bold;
   margin: 0 4px;
   cursor: pointer;
@@ -350,8 +350,8 @@ p, li, span, div {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 300px;
-  height: 300px;
+  width: 320px;
+  height: 320px;
   z-index: 10;
   display: flex;
   justify-content: center;
@@ -388,8 +388,8 @@ p, li, span, div {
 }
 
 .avatar-img {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: 2px solid #555;
   object-fit: cover;
@@ -458,8 +458,8 @@ p, li, span, div {
 
 .mini-card {
   position: absolute !important;
-  width: 25px !important;
-  height: 38px !important;
+  width: 20px !important;
+  height: 30px !important;
   margin: 0 !important;
   box-shadow: -2px 0px 5px rgba(0,0,0,0.5) !important;
   transition: transform 0.3s;
@@ -487,7 +487,7 @@ p, li, span, div {
 }
 
 .my-hand-card-wrapper {
-  margin: -10px -15px; /* Negative margins to overlap */
+  margin: -5px -12px; /* Negative margins to overlap */
   z-index: 1;
   transition: z-index 0s, transform 0.2s;
 }
