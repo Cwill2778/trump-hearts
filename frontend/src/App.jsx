@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import Peer from 'simple-peer/simplepeer.min.js';
 import './index.css';
 import Dashboard from './Dashboard';
 
@@ -22,6 +23,29 @@ const trumpQuotes = [
   { label: "Don't Tell Us", url: '/sounds/DontTellUsWhatWereGonnaFeel.m4r' }
 ];
 
+const PlayerAvatar = ({ player, position, isActive, roundScore, totalScore, speechBubble, isPttActive }) => {
+  if (!player) return null;
+  const isBottom = position === 'bottom';
+  return (
+    <div className={`spades-avatar-container ${position} ${isActive ? 'active' : ''}`}>
+      {speechBubble && (
+        <div className="speech-bubble">
+          {speechBubble}
+        </div>
+      )}
+      <div className="avatar-wrapper">
+        <img src={player.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${player.username.replace(' ','')}`} alt={player.username} className="avatar-img" />
+        {isPttActive && <div className="ptt-indicator">🎤</div>}
+        <div className="avatar-name">{player.username}</div>
+      </div>
+      <div className="score-bubble">
+        <span style={{color: 'var(--gold)'}}>R:</span> {roundScore} <br/>
+        <span style={{color: 'var(--gold)'}}>T:</span> {totalScore}
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
@@ -42,32 +66,161 @@ function App() {
   const [passAnimCards, setPassAnimCards] = useState([]);
   const [animatingCard, setAnimatingCard] = useState(null);
   const [isClearingTrick, setIsClearingTrick] = useState(null);
-  const [chat, setChat] = useState([]);
+  
+  // UI Overlays State
+  const [speechBubbles, setSpeechBubbles] = useState({}); // { username: string }
+  const [pttActivePlayers, setPttActivePlayers] = useState({}); // { socketId: boolean }
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [soundboardModalOpen, setSoundboardModalOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   
   // Local Game interaction state
   const [selectedCards, setSelectedCards] = useState([]);
 
+  // WebRTC Voice Chat State
+  const [voiceConnected, setVoiceConnected] = useState(false);
+  const [isPTTActive, setIsPTTActive] = useState(false);
+  const [remoteStreams, setRemoteStreams] = useState({});
+  const localStreamRef = useRef(null);
+  const peersRef = useRef({});
+
+  useEffect(() => {
+    socket.on('webrtc_ready', (peerSocketId) => {
+      if (voiceConnected && peerSocketId > socket.id) {
+        // We act as initiator
+        const peer = createPeer(peerSocketId, socket.id, localStreamRef.current, true);
+        peersRef.current[peerSocketId] = peer;
+      }
+    });
+
+    socket.on('webrtc_signal', ({ from, signal }) => {
+      if (!voiceConnected) return; // Ignore if we haven't joined voice
+      let peer = peersRef.current[from];
+      if (!peer) {
+        // They are initiating
+        peer = createPeer(from, socket.id, localStreamRef.current, false);
+        peersRef.current[from] = peer;
+      }
+      peer.signal(signal);
+    });
+
+    return () => {
+      socket.off('webrtc_ready');
+      socket.off('webrtc_signal');
+    };
+  }, [voiceConnected]);
+
+  const createPeer = (userToSignal, callerID, stream, initiator) => {
+    const peer = new Peer({
+      initiator: initiator,
+      trickle: true,
+      stream: stream,
+      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] }
+    });
+
+    peer.on('signal', signal => {
+      socket.emit('webrtc_signal', { to: userToSignal, signal });
+    });
+
+    peer.on('stream', remoteStream => {
+      setRemoteStreams(prev => ({ ...prev, [userToSignal]: remoteStream }));
+    });
+
+    peer.on('close', () => {
+      setRemoteStreams(prev => {
+        const next = {...prev};
+        delete next[userToSignal];
+        return next;
+      });
+      delete peersRef.current[userToSignal];
+    });
+
+    return peer;
+  };
+
+  const connectVoice = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Start muted
+      stream.getAudioTracks().forEach(t => t.enabled = false);
+      localStreamRef.current = stream;
+      setVoiceConnected(true);
+      socket.emit('webrtc_ready');
+    } catch (err) {
+      alert("Microphone permission denied or not found. Cannot join voice chat.");
+      console.error(err);
+    }
+  };
+
+  const startPTT = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(t => t.enabled = true);
+      setIsPTTActive(true);
+      socket.emit('ptt_active', true);
+      setPttActivePlayers(prev => ({ ...prev, [socket.id]: true }));
+    }
+  };
+
+  const stopPTT = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(t => t.enabled = false);
+      setIsPTTActive(false);
+      socket.emit('ptt_active', false);
+      setPttActivePlayers(prev => ({ ...prev, [socket.id]: false }));
+    }
+  };
+
   useEffect(() => {
     if (token && view !== 'LOGIN') {
       socket.connect();
     }
+
+    const onConnect = () => {
+      if (username) {
+        socket.emit('check_reconnect', { username });
+      }
+    };
     
+    socket.on('connect', onConnect);
+    
+    socket.on('reconnect_available', ({ roomId, originalId }) => {
+      if (window.confirm("You have an active game in progress! Reconnect now?")) {
+        socket.emit('rejoin_game', { roomId, originalId });
+      }
+    });
     socket.on('lobby_update', (players) => {
       setLobbyPlayers(players);
     });
 
+    socket.on('ptt_active', ({ socketId, isActive }) => {
+      setPttActivePlayers(prev => ({ ...prev, [socketId]: isActive }));
+    });
+
     socket.on('chat_message', (msg) => {
-      if (msg.text && msg.text.startsWith('🔊 [Soundboard]')) {
-        const parts = msg.text.split('|');
+      if (msg.system) return; // Ignore system messages for bubbles
+      
+      let text = msg.text;
+      if (text && text.startsWith('🔊 [Soundboard]')) {
+        const parts = text.split('|');
         if (parts.length > 1) {
           const url = parts[1];
           const audio = new Audio(url);
           audio.play().catch(e => console.error(e));
-          msg.text = parts[0]; // just show the label part in chat
+          text = '🎺 ' + parts[0].replace('🔊 [Soundboard] ', '');
         }
       }
-      setChat(prev => [...prev, msg]);
+      
+      setSpeechBubbles(prev => ({ ...prev, [msg.username]: text }));
+      setTimeout(() => {
+        setSpeechBubbles(prev => {
+          const next = { ...prev };
+          if (next[msg.username] === text) delete next[msg.username];
+          return next;
+        });
+      }, 8000);
     });
 
     socket.on('game_update', (state) => {
@@ -100,8 +253,10 @@ function App() {
       socket.off('error_message');
       socket.off('room_joined');
       socket.off('tournament_started');
+      socket.off('connect', onConnect);
+      socket.off('reconnect_available');
     };
-  }, [token, view]);
+  }, [token, view, username]);
 
   useEffect(() => {
     if (gameState && prevGameState) {
@@ -305,22 +460,6 @@ function App() {
             <button className="tremendous-btn" style={{width: '100%'}} onClick={() => handleAuth('register')}>Register</button>
           </div>
         </div>
-        <div style={{ padding: '20px', textAlign: 'center', fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', maxWidth: '800px', margin: '0 auto', lineHeight: '1.6', background: 'rgba(0,0,0,0.6)', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--gold)' }}>
-          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--gold)', margin: '0 0 10px 0' }}>🇺🇸 Happy 4th of July and to America for its 250th birthday! 🇺🇸</p>
-          <p style={{ margin: '0 0 15px 0' }}>We are celebrating the independence and freedoms of solo entrepreneurs and technical trades this year:</p>
-          
-          <p style={{ margin: '0 0 15px 0' }}>
-            <span style={{color: 'var(--gold)'}}>Listing:</span> <br/>
-            <a href="https://www.naileditpropertysolutions.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--white)', textDecoration: 'underline', fontWeight: 'bold' }}>www.naileditpropertysolutions.com</a> <br/>
-            as the top Technical Trade for Home Repairs and Preventative Maintenance Subscriptions protecting your greatest and most expensive investments: your home.
-          </p>
-          
-          <p style={{ margin: '0' }}>
-            <span style={{color: 'var(--gold)'}}>And:</span> <br/>
-            To <a href="https://www.cronantech.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--white)', textDecoration: 'underline', fontWeight: 'bold' }}>www.cronantech.com</a> <br/>
-            as a solo entrepreneur in the tech world for designing Nailed It and Cronan Tech websites in full.
-          </p>
-        </div>
       </div>
     );
   }
@@ -363,6 +502,16 @@ function App() {
             )}
             
             <button className="tremendous-btn" style={{marginTop: 20, width: '100%', background: 'var(--red)'}} onClick={leaveGame}>Leave Table</button>
+            
+            <div style={{marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--gold)'}}>
+              {!voiceConnected ? (
+                <button className="tremendous-btn" onClick={connectVoice} style={{width: '100%', background: 'var(--navy)'}}>
+                  Connect Voice Chat
+                </button>
+              ) : (
+                <div style={{color: 'green', fontWeight: 'bold', textAlign: 'center'}}>✓ Voice Chat Connected</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -418,28 +567,46 @@ function App() {
         {showGlassShatter && <div className="glass-shatter-overlay" />}
         {showQSAnimation && <div className="qs-animation-overlay">DON'T BE RUDE!</div>}
         
-        {/* Top Player (Across) */}
-        {getPlayer(2) && (
-          <div className={`player-area top-area ${gameState?.turnIndex === ((myIndex + 2) % 4) ? 'active-player' : ''}`} style={{ borderBottom: '1px solid var(--gold)', flexDirection: 'column' }}>
-            <h3>{getPlayer(2).username} | Round: {gameState.roundScores[getPlayer(2).id] || 0} | Total: {gameState.scores[getPlayer(2).id] || 0}</h3>
-            {renderOpponentHand(getPlayer(2), 'top')}
-          </div>
-        )}
+        {/* Table Felt Background handled by CSS */}
         
-        {/* Middle Area (Left, Center Table, Right) */}
-        <div style={{ display: 'flex', flexGrow: 1 }}>
-          {/* Left Player */}
-          {getPlayer(1) && (
-             <div className={`player-area left-area ${gameState?.turnIndex === ((myIndex + 1) % 4) ? 'active-player' : ''}`} style={{ borderRight: '1px solid var(--gold)', writingMode: 'vertical-rl', transform: 'rotate(180deg)', flexDirection: 'column' }}>
-               <h3>{getPlayer(1).username} | Round: {gameState.roundScores[getPlayer(1).id] || 0} | Total: {gameState.scores[getPlayer(1).id] || 0}</h3>
-               {renderOpponentHand(getPlayer(1), 'left')}
-             </div>
-          )}
-          
-          <div className="table-center">
+        {/* Top Player (Across) */}
+        <PlayerAvatar 
+          player={getPlayer(2)} 
+          position="top" 
+          isActive={gameState?.turnIndex === ((myIndex + 2) % 4)} 
+          roundScore={gameState?.roundScores[getPlayer(2)?.id] || 0} 
+          totalScore={gameState?.scores[getPlayer(2)?.id] || 0}
+          speechBubble={speechBubbles[getPlayer(2)?.username]}
+          isPttActive={pttActivePlayers[getPlayer(2)?.id]}
+        />
+        
+        {/* Left Player */}
+        <PlayerAvatar 
+          player={getPlayer(1)} 
+          position="left" 
+          isActive={gameState?.turnIndex === ((myIndex + 1) % 4)} 
+          roundScore={gameState?.roundScores[getPlayer(1)?.id] || 0} 
+          totalScore={gameState?.scores[getPlayer(1)?.id] || 0}
+          speechBubble={speechBubbles[getPlayer(1)?.username]}
+          isPttActive={pttActivePlayers[getPlayer(1)?.id]}
+        />
+
+        {/* Right Player */}
+        <PlayerAvatar 
+          player={getPlayer(3)} 
+          position="right" 
+          isActive={gameState?.turnIndex === ((myIndex + 3) % 4)} 
+          roundScore={gameState?.roundScores[getPlayer(3)?.id] || 0} 
+          totalScore={gameState?.scores[getPlayer(3)?.id] || 0}
+          speechBubble={speechBubbles[getPlayer(3)?.username]}
+          isPttActive={pttActivePlayers[getPlayer(3)?.id]}
+        />
+        
+        {/* Center Trick Area */}
+        <div className="table-center spades-table-center">
           <div className="waving-flag"></div>
           {gameState && (
-            <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
+            <button className="mobile-menu-btn spades-menu-btn" onClick={() => setIsSidebarOpen(true)}>
               ☰ Menu
             </button>
           )}
@@ -486,7 +653,7 @@ function App() {
           })}
              
              {gameState?.gameState === 'PASSING' && (
-               <div style={{position: 'absolute', top: 20, color: 'var(--gold)'}}>
+               <div style={{position: 'absolute', top: 20, color: 'var(--gold)', textAlign: 'center'}}>
                  <h2>Select 3 cards to pass!</h2>
                  <button className="tremendous-btn" onClick={passCards}>Confirm Pass</button>
                </div>
@@ -516,23 +683,25 @@ function App() {
              )}
           </div>
 
-          {/* Right Player */}
-          {getPlayer(3) && (
-              <div className={`player-area right-area ${gameState?.turnIndex === ((myIndex + 3) % 4) ? 'active-player' : ''}`} style={{ borderLeft: '1px solid var(--gold)', writingMode: 'vertical-rl', flexDirection: 'column' }}>
-               <h3>{getPlayer(3).username} | Round: {gameState.roundScores[getPlayer(3).id] || 0} | Total: {gameState.scores[getPlayer(3).id] || 0}</h3>
-               {renderOpponentHand(getPlayer(3), 'right')}
-             </div>
-          )}
-        </div>
+        {/* Hidden Remote Audio Streams */}
+        {Object.entries(remoteStreams).map(([peerId, stream]) => (
+          <audio key={peerId} autoPlay ref={el => { if (el && el.srcObject !== stream) el.srcObject = stream; }} />
+        ))}
 
         {/* Bottom Player (Me) */}
-        <div className={`my-area ${gameState?.turnIndex === myIndex ? 'active-player' : ''}`}>
-          <div className="my-info">
-            <h3>{username} | Round: {gameState?.roundScores[getPlayer(0)?.id] || 0} | Total: {gameState?.scores[getPlayer(0)?.id] || 0}</h3>
-            {gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username && (
-              <div style={{color: 'var(--gold)', fontWeight: 'bold'}}>YOUR TURN!</div>
-            )}
-          </div>
+        <div className={`spades-my-area ${gameState?.turnIndex === myIndex ? 'active-player' : ''}`}>
+          <PlayerAvatar 
+            player={getPlayer(0)} 
+            position="bottom" 
+            isActive={gameState?.turnIndex === myIndex} 
+            roundScore={gameState?.roundScores[getPlayer(0)?.id] || 0} 
+            totalScore={gameState?.scores[getPlayer(0)?.id] || 0} 
+            speechBubble={speechBubbles[getPlayer(0)?.username]}
+            isPttActive={pttActivePlayers[getPlayer(0)?.id]}
+          />
+          {gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username && (
+            <div className="your-turn-text">YOUR TURN!</div>
+          )}
           <div className={`my-hand ${gameState?.gameState === 'PLAYING' && gameState?.players[gameState?.turnIndex]?.username === username ? 'my-turn-glow' : ''}`}>
             {(!isDealing && !isPassingAnim) && gameState?.hand.slice().sort((a, b) => {
               const suitOrder = { 'H': 1, 'S': 2, 'D': 3, 'C': 4 };
@@ -540,7 +709,7 @@ function App() {
               if (suitOrder[a[1]] !== suitOrder[b[1]]) return suitOrder[a[1]] - suitOrder[b[1]];
               return rankOrder[a[0]] - rankOrder[b[0]];
             }).map(card => (
-              <div key={card} className={animatingCard === card ? 'play-card-anim' : ''}>
+              <div key={card} className={`my-hand-card-wrapper ${animatingCard === card ? 'play-card-anim' : ''}`}>
                 {renderCard(
                   card, 
                   true, 
@@ -557,50 +726,63 @@ function App() {
             ))}
           </div>
         </div>
-      </div>
 
-      <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="card-container" style={{padding: 10, margin: 0, height: '100%', display: 'flex', flexDirection: 'column'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 0}}>
-            <h3 style={{margin: 0}}>Lobby Chat</h3>
-            <button className="mobile-menu-btn" style={{position: 'static', display: 'block'}} onClick={() => setIsSidebarOpen(false)}>✕</button>
-          </div>
-          
-          <button className="tremendous-btn" style={{padding: '5px 10px', marginBottom: 10, fontSize: '0.9rem', background: 'var(--red)', width: '100%'}} onClick={leaveGame}>
-            Leave Table
-          </button>
-          <div className="chat-box">
-            {chat.map((msg, i) => (
-              <div key={i} className={`chat-message ${msg.system ? 'system' : 'user'}`}>
-                {!msg.system && <span className="author">{msg.username}:</span>}
-                {msg.text}
-              </div>
-            ))}
-          </div>
-          <form onSubmit={sendChat} style={{display: 'flex', marginTop: 10}}>
-            <input 
-              className="input-field" 
-              style={{margin: 0, borderRadius: '4px 0 0 4px'}}
-              value={chatInput} 
-              onChange={e => setChatInput(e.target.value)} 
-            />
-            <button type="submit" className="tremendous-btn" style={{padding: '10px', borderRadius: '0 4px 4px 0'}}>Send</button>
-          </form>
-
-          <h3 style={{marginTop: 20}}>Trump Soundboard (Push-to-Talk)</h3>
-          <div style={{display: 'flex', flexWrap: 'wrap'}}>
-            {trumpQuotes.map((q, i) => (
-              <button 
-                key={i} 
-                className="soundboard-btn" 
-                onClick={() => sendSoundboard(q)}
-                title={q.label}
-              >
-                {q.label}
-              </button>
-            ))}
+        {/* Radial Action Menu */}
+        <div className="action-menu-container">
+          <div className={`radial-menu-container ${actionMenuOpen ? 'open' : ''}`}>
+            <button className="action-fab" onClick={() => setActionMenuOpen(!actionMenuOpen)}>
+              {actionMenuOpen ? '✕' : '💬'}
+            </button>
+            <div className="radial-menu-item radial-item-1" title="Type Msg" onClick={() => { setChatModalOpen(true); setActionMenuOpen(false); }}>
+              ✏️
+            </div>
+            <div className="radial-menu-item radial-item-2" title="Speak Now" 
+                 onMouseDown={startPTT} onMouseUp={stopPTT} onMouseLeave={stopPTT} onTouchStart={startPTT} onTouchEnd={stopPTT}
+                 style={{ background: isPTTActive ? 'var(--gold)' : 'var(--red)' }}>
+              🎙️
+            </div>
+            <div className="radial-menu-item radial-item-3" title="Feeling Trumped" onClick={() => { setSoundboardModalOpen(true); setActionMenuOpen(false); }}>
+              🎺
+            </div>
           </div>
         </div>
+        
+        {/* Chat Modal */}
+        {chatModalOpen && (
+          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.9)', padding: 20, borderRadius: 10, zIndex: 1000, border: '2px solid var(--gold)', width: '300px'}}>
+            <h3 style={{marginTop: 0, color: 'var(--gold)'}}>Send Message</h3>
+            <form onSubmit={(e) => { e.preventDefault(); sendChat(e); setChatModalOpen(false); }}>
+              <input className="input-field" autoFocus value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type..." />
+              <div style={{display: 'flex', gap: 10, marginTop: 10}}>
+                <button type="submit" className="tremendous-btn" style={{flex: 1}}>Send</button>
+                <button type="button" className="tremendous-btn" style={{flex: 1, background: 'var(--navy)'}} onClick={() => setChatModalOpen(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        )}
+        
+        {/* Soundboard Modal */}
+        {soundboardModalOpen && (
+          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.9)', padding: 20, borderRadius: 10, zIndex: 1000, border: '2px solid var(--gold)', width: '300px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gold)', paddingBottom: 10, marginBottom: 10}}>
+               <h3 style={{margin: 0, color: 'var(--gold)'}}>Trump Soundboard</h3>
+               <button onClick={() => setSoundboardModalOpen(false)} style={{background: 'transparent', color: 'white', border: 'none', cursor: 'pointer', fontSize: '1.2rem'}}>✕</button>
+            </div>
+            <div style={{display: 'flex', flexWrap: 'wrap', gap: 10}}>
+              {trumpQuotes.map((q, i) => (
+                <button key={i} className="soundboard-btn" onClick={() => { sendSoundboard(q); setSoundboardModalOpen(false); }}>
+                  {q.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Exit Button */}
+        <button onClick={leaveGame} style={{position: 'absolute', top: 20, right: 20, background: 'var(--red)', color: 'white', border: '2px solid white', borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', zIndex: 200, fontWeight: 'bold'}}>
+          ✕
+        </button>
+
       </div>
     </div>
   );

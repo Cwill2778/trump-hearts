@@ -11,9 +11,42 @@ class TournamentManager {
     this.tournamentCounter = 1;
   }
 
+  broadcastQueueUpdate() {
+    const timeLeft = this.queueTimer ? Math.max(0, Math.floor((this.queueTimer - Date.now()) / 1000)) : null;
+    const update = { 
+      count: this.queue.length, 
+      required: 16, 
+      timeLeft,
+      players: this.queue.map(p => ({ id: p.socket.id, username: p.user.username }))
+    };
+    this.queue.forEach(p => p.socket.emit('tournament_queue_update', update));
+  }
+
+  fillWithBotsAndStart() {
+    this.timerInterval = null;
+    this.queueTimer = null;
+    const botsNeeded = 16 - this.queue.length;
+    for (let i = 0; i < botsNeeded; i++) {
+      const botSocket = {
+        id: `bot_t_${Math.random()}`,
+        emit: () => {}, join: () => {}, leave: () => {}
+      };
+      const botNames = ['Jesse', 'Jason', 'Logan', 'Steve', 'Terry', 'Justin', 'Marissa', 'Chelsea', 'Amy', 'Jessica', 'Jennifer'];
+      const botName = botNames[Math.floor(Math.random() * botNames.length)];
+      const botUser = {
+        id: `bot_user_${Math.random()}`,
+        username: botName,
+        isBot: true,
+        avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${botName}`
+      };
+      this.queue.push({ socket: botSocket, user: botUser });
+    }
+    this.startTournament();
+  }
+
   async joinQueue(socket, user) {
     // Check if player has enough coins
-    if (user.coins < 10000) {
+    if (user.coins < 10000 && !user.isBot) {
       socket.emit('tournament_error', 'Not enough coins. Tremendous losers cannot afford this!');
       return;
     }
@@ -34,17 +67,24 @@ class TournamentManager {
     }
 
     this.queue.push({ socket, user: updatedUser });
-    socket.emit('tournament_queue_update', { count: this.queue.length, required: 16 });
     
-    // Broadcast to others in queue
-    this.queue.forEach(p => {
-      if (p.socket.id !== socket.id) {
-        p.socket.emit('tournament_queue_update', { count: this.queue.length, required: 16 });
-      }
-    });
+    // Start 30 sec timer on first real player
+    if (this.queue.length === 1 && !user.isBot) {
+      this.queueTimer = Date.now() + 30000;
+      this.timerInterval = setTimeout(() => {
+        this.fillWithBotsAndStart();
+      }, 30000);
+    }
+    
+    this.broadcastQueueUpdate();
 
-    // Check if tournament should start
+    // Check if tournament should start immediately (16 players)
     if (this.queue.length >= 16) {
+      if (this.timerInterval) {
+         clearTimeout(this.timerInterval);
+         this.timerInterval = null;
+         this.queueTimer = null;
+      }
       this.startTournament();
     }
   }
@@ -54,13 +94,22 @@ class TournamentManager {
     if (idx !== -1) {
       // Refund
       const user = this.queue[idx].user;
-      prisma.user.update({
-        where: { id: user.id },
-        data: { coins: { increment: 10000 } }
-      }).catch(e => console.error(e));
+      if (!user.isBot) {
+        prisma.user.update({
+          where: { id: user.id },
+          data: { coins: { increment: 10000 } }
+        }).catch(e => console.error(e));
+      }
       
       this.queue.splice(idx, 1);
-      this.queue.forEach(p => p.socket.emit('tournament_queue_update', { count: this.queue.length, required: 16 }));
+      
+      if (this.queue.length === 0 && this.timerInterval) {
+        clearTimeout(this.timerInterval);
+        this.timerInterval = null;
+        this.queueTimer = null;
+      }
+      
+      this.broadcastQueueUpdate();
     }
   }
 
@@ -122,6 +171,7 @@ class TournamentManager {
       game.evaluateRound = () => {
         originalEvaluateRound();
         this.broadcastGameState(game, roomId);
+        this.broadcastBracketState(tId);
         
         // Check if game is completely over (someone reached 100 points)
         if (game.gameState === 'GAME_OVER') {
@@ -131,6 +181,31 @@ class TournamentManager {
 
       t.tables.push(game);
     }
+    
+    this.broadcastBracketState(tId);
+  }
+
+  broadcastBracketState(tId) {
+    const t = this.activeTournaments.get(tId);
+    if (!t) return;
+    
+    const bracketData = {
+       tournamentId: tId,
+       round: t.round,
+       tables: t.tables.map(g => ({
+          roomId: g.roomId,
+          state: g.gameState,
+          players: g.players.map(p => ({ 
+             id: p.id, 
+             username: p.username, 
+             score: g.scores[p.id] || 0,
+             isAdvancing: t.advancingPlayers.find(a => a.socket.id === p.id) ? true : false,
+             isEliminated: g.gameState === 'GAME_OVER' && !t.advancingPlayers.find(a => a.socket.id === p.id)
+          }))
+       })),
+    };
+    
+    this.io.to(tId).emit('tournament_bracket_update', bracketData);
   }
 
   handleTableComplete(tId, game) {
@@ -156,6 +231,7 @@ class TournamentManager {
 
     delete this.lobbies[game.roomId];
     t.completedTables++;
+    this.broadcastBracketState(tId);
 
     if (t.completedTables === t.tables.length) {
       this.advanceRound(tId);
@@ -167,17 +243,28 @@ class TournamentManager {
     t.players = t.advancingPlayers;
     t.round++;
 
-    if (t.players.length === 2) {
-      // 4 players in round 3, 2 players advance... this is the end.
-      const winner = t.players[0].user;
-      const runnerUp = t.players[1].user;
+    if (t.round > 3) {
+      // Tournament is over! The advancing players from the final table are our winners.
+      const winner = t.players[0];
+      const runnerUp = t.players[1];
 
-      // Payouts
-      await prisma.user.update({ where: { id: winner.id }, data: { coins: { increment: 100000 } } });
-      await prisma.user.update({ where: { id: runnerUp.id }, data: { coins: { increment: 25000 } } });
+      // Payouts — only update real users, skip bots
+      if (winner && !winner.user.isBot) {
+        try {
+          await prisma.user.update({ where: { id: winner.user.id }, data: { coins: { increment: 100000 }, wins: { increment: 1 } } });
+        } catch(e) { console.error('Winner payout error:', e); }
+      }
+      if (runnerUp && !runnerUp.user.isBot) {
+        try {
+          await prisma.user.update({ where: { id: runnerUp.user.id }, data: { coins: { increment: 25000 } } });
+        } catch(e) { console.error('Runner-up payout error:', e); }
+      }
 
-      t.players[0].socket.emit('tournament_won', { prize: 100000, message: 'YOU WON THE TOURNAMENT! YUGE WIN!' });
-      t.players[1].socket.emit('tournament_won', { prize: 25000, message: 'You got 2nd place. Not bad.' });
+      // Update losses for all eliminated real players
+      // (They were already removed from t.players in previous rounds)
+
+      if (winner) winner.socket.emit('tournament_won', { prize: 100000, message: 'YOU WON THE TOURNAMENT! YUGE WIN!' });
+      if (runnerUp) runnerUp.socket.emit('tournament_won', { prize: 25000, message: 'You got 2nd place. Not bad.' });
       
       this.io.to(tId).emit('tournament_ended');
       this.activeTournaments.delete(tId);

@@ -100,7 +100,7 @@ class HeartsGame {
       this.determineFirstTurn();
       return true; // passing complete
     }
-    return false;
+    return 'WAITING'; // accepted, waiting for others
   }
 
   executePass() {
