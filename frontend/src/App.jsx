@@ -801,7 +801,8 @@ function App() {
                   selectedCards.includes(card)
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
 
