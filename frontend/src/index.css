@@ -471,15 +471,15 @@ p, li, span, div {
 
 .my-hand {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
   padding: 15px 10px;
   background: rgba(0,0,0,0.5);
   border-top: 2px solid var(--gold);
   border-radius: 20px 20px 0 0;
-  width: 100%;
-  max-width: 320px; /* Forces wrapping for 13 cards */
+  width: auto;
+  max-width: 95vw; 
   margin: 0 auto;
   margin-bottom: 20px; /* Raised up a little */
   position: relative;
